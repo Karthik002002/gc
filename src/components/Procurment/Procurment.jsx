@@ -12,21 +12,19 @@ function Procurment() {
     { title: "Collection Process", link: "Collection_Process.pdf" },
     { title: "PAC by OEM", link: "PAC_Grid_Converter.pdf" },
     { title: "PAC by CO", link: "PAC_Cos.pdf" },
-    { title: "Cert of Conformance", link: "GC_COC_Certificate.pdf" },
+    { title: "Cert of Conformance", link: "GC_COC_Certificate.pdf" }, 
     { title: "Grid Converter Tech Specs", link: "GC_Tech_spe.pdf" },
   ];
 
   return (
-    <div className="w-full bg-white py-3 px-4 sm:px-6 overflow-x-hidden">
-      
-
+    <div className="w-full bg-white py-3 px-4 sm:px-6 overflow-x-hidden h-full">
       {/* Main Grid Row: 8 + 4 column layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Left: Text Content */}
         <div className="text-justify col-span-12 md:col-span-9 w-full">
-        <h2 className="text-2xl font-bold text-[var(--heading)] my-1 flex justify-center">
-        Procurement
-      </h2>
+          <h2 className="text-2xl font-bold text-[var(--heading)] my-1 flex justify-center">
+            Procurement
+          </h2>
           <p className="mb-3">
             The final version of the Grid Converter, incorporating all
             enhancements and user-friendly features, is a robust, military-grade
@@ -57,7 +55,7 @@ function Procurment() {
               target="_blank"
               title="Visit GeM"
             >
-             Concessional rate Elena Grid Converter
+              Concessional rate Elena Grid Converter
             </a>
             .
           </p>
@@ -66,7 +64,8 @@ function Procurment() {
             The documents that will help in the procurement are given beside.
           </p>
           <p className="mb-1">
-            The product needs to be collected through a special process which is given beside in the document "Collection Process".
+            The product needs to be collected through a special process which is
+            given beside in the document "Collection Process".
           </p>
         </div>
 

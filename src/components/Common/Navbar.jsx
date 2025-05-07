@@ -12,8 +12,8 @@ const Navbar = () => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const[supportMenu,setSuppotMenu]=useState(false)
-  const dropdownRef = useRef(null);
+  const [supportMenu, setSupportMenu] = useState(false);
+  const supportRef = useRef(null);
   const menuRef = useRef(null);
   const userRef = useRef(null);
   const LoggedInStatus = useSelector((state) => state.data.LoggedInStatus);
@@ -37,39 +37,27 @@ const Navbar = () => {
       window.location.reload();
     }, 100);
   };
-
   useEffect(() => {
     function handleClickOutside(event) {
-      // Close dropdown if clicked outside
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+
+      if (supportRef.current && !supportRef.current.contains(event.target)) {
+        setSupportMenu(false);
+      }
+
+      if (userRef.current && !userRef.current.contains(event.target)) {
         setDropdownOpen(false);
       }
-      // Close mobile menu if clicked outside
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setMenuOpen(false);
-      }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      // Close dropdown if clicked outside
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setSuppotMenu(false);
-      }
-      // Close mobile menu if clicked outside
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
   return (
     <div className="flex flex-row justify-center items-center">
       <div className="w-full rounded-xl relative">
@@ -87,7 +75,7 @@ const Navbar = () => {
             </h5>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" ref={userRef}>
             {!LoggedInStatus ? (
               <div
                 className="font-semibold bg-white border rounded-lg px-3 py-2 cursor-pointer text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white hover:border-white transition-all duration-300"
@@ -96,7 +84,7 @@ const Navbar = () => {
                 Login
               </div>
             ) : (
-              <div className="relative inline-block text-left" ref={userRef}>
+              <div className="relative inline-block text-left">
                 <div
                   onClick={() => setDropdownOpen((prev) => !prev)}
                   className="cursor-pointer"
@@ -107,12 +95,13 @@ const Navbar = () => {
                 {dropdownOpen && (
                   <div className="absolute right-0 mt-2 w-40 bg-white rounded shadow-lg z-50">
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         window.sessionStorage.clear();
                         store.dispatch(updateLoggedInStatus(false));
                         navigate("/login");
                       }}
-                      className="w-full text-left px-4 py-4 text-md text-gray-700 hover:bg-gray-100 font-semibold flex flex-row items-center"
+                      className="w-full text-left px-4 py-4 text-md text-gray-700 hover:bg-gray-100 font-semibold flex flex-row items-center cursor-pointer"
                     >
                       <TbLogout size={20} className="text-red-500 mr-2" />
                       Logout
@@ -164,19 +153,22 @@ const Navbar = () => {
                     location.pathname.includes("/ticket")) &&
                   "text-white bg-[var(--primary)]"
                 }`}
-                ref={dropdownRef}
+                ref={supportRef}
               >
-                <div onClick={(e) =>{ 
-                  e.stopPropagation()
-                  setSuppotMenu((prev) => !prev)}}>
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSupportMenu((prev) => !prev);
+                  }}
+                >
                   Support
                 </div>
                 {supportMenu && (
                   <ul className="absolute top-[100%] right-0 mt-2 w-40 bg-white border border-gray-300 rounded shadow-md z-[100] text-gray-700">
-                    <Link to="/feedback" onClick={() => setSuppotMenu(false)}>
+                    <Link to="/feedback" onClick={() => setSupportMenu(false)}>
                       <li className="px-4 py-2 hover:bg-gray-100">Feedback</li>
                     </Link>
-                    <Link to="/ticket" onClick={() => setSuppotMenu(false)}>
+                    <Link to="/ticket" onClick={() => setSupportMenu(false)}>
                       <li className="px-4 py-2 hover:bg-gray-100">Ticket</li>
                     </Link>
                   </ul>

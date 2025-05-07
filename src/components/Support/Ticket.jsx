@@ -1,8 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import DeviceData from "./Feedback.json";
 import TicketData from "./Ticket.json";
 import CustomButton from "../Common/CustomButton";
 import { CgCheckO } from "react-icons/cg";
+import { useFetch } from "../../query/UseFetch";
+import { APPURL } from "../../URL";
+import { useMutation } from "@tanstack/react-query";
 
 export default function Ticket() {
   const [activeTab, setActiveTab] = useState("add");
@@ -49,6 +52,77 @@ function AddTicket() {
     description: "",
     images: [],
   });
+
+  const { get, usePost } = useFetch();
+  const { mutate, isPostLoading, isSuccess, isError, error, data } = usePost();
+  const {
+    data: devices,
+    isLoading,
+    isDeviceError,
+    Deviceerror,
+    refetch,
+  } = get({
+    key: "devices",
+    url: APPURL.devices,
+  });
+
+  const mutationFn = async ({ url, data, loadingkey }) => {
+    handleLoadingStatus(loadingkey, true);
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const response = await res.json();
+        throw response; // 🛑 throw error
+      }
+
+      return res;
+    } catch (err) {
+      throw err; // ✅ pass to onError
+    }
+  };
+
+  const {
+    mutate: mutateRequestMobileOTP,
+    isSuccess: isSuccessMobileOTP,
+    isError: isErrorMobileOTP,
+    error: errorMobileOTP,
+  } = useMutation({
+    mutationFn,
+    onSuccess: (data) => {
+      if (data.status === 200) {
+        setShowMobileOtp(true);
+        showToast({
+          type: "success",
+          heading: "OTP sent successfully",
+          message: "Enter the code to verify your identity.",
+        });
+      }
+    },
+    onError: (err) => {
+      if (err.detail && err.detail.includes("Verified")) {
+        showToast({
+          type: "success",
+          heading: "Verified",
+          message: "Mobile Number already verified.",
+        });
+        setVerifiedStatus((prev) => ({
+          ...prev,
+          mobile_no: true,
+        }));
+        setShowMobileOtp(false);
+      }
+      console.error("Mobile OTP failed:", err);
+    },
+  });
+
   const [AddStatus, setAddStatus] = useState({
     loading: false,
     disabled: true,
@@ -58,6 +132,15 @@ function AddTicket() {
     const { name, value } = e.target;
     setAddFormData((prev) => ({ ...prev, [name]: value }));
   };
+
+  useEffect(() => {
+    if (addFormData) {
+      const MandatoryField = ["name", "device_id", "mail", "description"];
+    const FormStatus = MandatoryField.map(key=>{
+      return addFormData[key]
+    })
+    }
+  }, [addFormData]);
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
@@ -69,7 +152,7 @@ function AddTicket() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Form Submitted", addFormData);
+    const ValidateField = console.log("Form Submitted", addFormData);
   };
 
   return (
@@ -92,9 +175,9 @@ function AddTicket() {
             <option value="" disabled>
               Select a device
             </option>
-            {DeviceData.map((device) => (
+            {devices?.map((device) => (
               <option key={device.device_id} value={device.device_id}>
-                {device.device_name}
+                {device.device_info}
               </option>
             ))}
           </select>
@@ -183,6 +266,19 @@ function AddTicket() {
 }
 
 function TicketStatus() {
+  const { get } = useFetch();
+  const {
+    data: tickets,
+    isLoading,
+    isDeviceError,
+    Deviceerror,
+    refetch,
+  } = get({
+    key: "tickets",
+    url: APPURL.tickets,
+  });
+  console.log(tickets);
+
   return (
     <div className="pb-4 max-h-[72vh] overflow-y-auto custom-scrollbar">
       <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
@@ -197,12 +293,12 @@ function TicketStatus() {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 text-sm">
-          {[...TicketData, ...TicketData].map((ticket) => (
+          {tickets?.map((ticket) => (
             <tr key={ticket.ticket_id} className="hover:bg-gray-50">
               <td className="px-4 py-2">{ticket.ticket_id}</td>
               <td className="px-4 py-2">{ticket.device_name}</td>
-              <td className="px-4 py-2">{ticket.name}</td>
-              <td className="px-4 py-2">{ticket.mail}</td>
+              <td className="px-4 py-2">{ticket.created_by}</td>
+              <td className="px-4 py-2">{ticket.email_id}</td>
               <td
                 className={`px-4 py-2 capitalize cursor-pointer flex flex-row items-center ${
                   ticket.status === "open"

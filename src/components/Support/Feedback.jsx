@@ -13,8 +13,8 @@ import CustomButton from "../Common/CustomButton";
 // ];
 
 export default function Feedback() {
-  const { get, post } = useFetch();
-  const { mutate, isPostLoading, isSuccess, isError, error, data } = post;
+  const { get, usePost } = useFetch();
+  const { mutate, isPostLoading, isSuccess, isError, error, data } = usePost();
   const {
     data: devices,
     isLoading,
@@ -25,6 +25,7 @@ export default function Feedback() {
     key: "devices",
     url: APPURL.devices,
   });
+
 
   const [selectedDevice, setSelectedDevice] = useState({});
   const [rating, setRating] = useState(0);

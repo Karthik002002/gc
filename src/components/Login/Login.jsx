@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { use, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import EleneLogo from "../../assets/ElenaLogo.png";
 import { FiEye, FiEyeOff } from "react-icons/fi";
@@ -11,7 +11,8 @@ import { updateLoggedInStatus } from "../../redux/DataSlice";
 import { useNavigate } from "react-router-dom";
 import { SpinnerCircularFixed } from "spinners-react";
 import { APPURL } from "../../URL";
-import { useFetch } from "../../query/UseFetch";
+import { getAuthToken, useFetch } from "../../query/UseFetch";
+import { useMutation } from "@tanstack/react-query";
 
 export default function Login() {
   const { showToast } = useToast();
@@ -48,7 +49,11 @@ export default function Login() {
       if (response.status === 200) {
         setSuccess("Login successful!");
         const data = await response.data;
-        showToast({ type: "success", heading: "Login Successfull" });
+        showToast({
+          type: "success",
+          heading: "Login Successfull",
+          message: "Session started securely.",
+        });
         window.sessionStorage.setItem("user", JSON.stringify(data));
         store.dispatch(updateLoggedInStatus(true));
         navigate("/feedback");
@@ -141,11 +146,7 @@ export default function Login() {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                // showToast({
-                //   type: "error",
-                //   heading: "Error",
-                //   message: "Something went wrong!",
-                // });
+
                 handleSubmit(e);
               }}
               className="bg-[var(--primary)] text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full flex justify-center"
@@ -180,38 +181,24 @@ const Register = ({ showRegister, setShowRegister }) => {
     mobile_otp: "",
     mail_otp: "",
   });
-  const { post } = useFetch();
-  const {
-    mutate: mutateGenerateMobileOTP,
-    isLoading: isLoadingGenerateMobileOTP,
-    isSuccess: isSuccessGenerateMobileOTP,
-    isError: isErrorGenerateMobileOTP,
-    error: errorGenerateMobileOTP,
-  } = post;
 
-  const {
-    mutate: mutateGenerateMailOTP,
-    isLoading: isLoadingGenerateMailOTP,
-    isSuccess: isSuccessGenerateMailOTP,
-    isError: isErrorGenerateMailOTP,
-    error: errorGenerateMailOTP,
-  } = post;
+  const LoadingKey = {
+    verifyMail: "verifyMail",
+    sendMail: "sendMail",
+    verifyMobile: "verifyMobile",
+    sendMobile: "sendMobile",
+  };
 
-  const {
-    mutate: mutateMobileOTP,
-    isLoading: isLoadingMobileOTP,
-    isSuccess: isSuccessMobileOTP,
-    isError: isErrorMobileOTP,
-    error: errorMobileOTP,
-  } = post;
+  const [LoadingStatus, setLoadingStatus] = useState({
+    sendMail: false,
+    verifyMail: false,
+    sendMobile: false,
+    verifyMobile: false,
+  });
 
-  const {
-    mutate: mutateMailOTP,
-    isLoading: isLoadingMailOTP,
-    isSuccess: isSuccessMailOTP,
-    isError: isErrorMailOTP,
-    error: errorMailOTP,
-  } = post;
+  const handleLoadingStatus = (key, value) => {
+    setLoadingStatus((prev) => ({ ...prev, [key]: value }));
+  };
 
   const [showMobileOtp, setShowMobileOtp] = useState(false);
   const [showEmailOtp, setShowEmailOtp] = useState(false);
@@ -224,6 +211,159 @@ const Register = ({ showRegister, setShowRegister }) => {
     mobile_no: false,
     mail_address: false,
   });
+
+  const [status, setStatus] = useState({
+    mobileVerified: false,
+    mailVerified: false,
+  });
+  const { usePost } = useFetch();
+  useEffect(() => {
+    if (VerifiedStatus.mail_address && VerifiedStatus.mobile_no) {
+      setShowRegister(false);
+      showToast({
+        type: "success",
+        heading: "Profile Verified",
+        message: "Kindly Login with your credentials.",
+      });
+    }
+  }, [VerifiedStatus]);
+  const mutationFn = async ({ url, data, loadingkey }) => {
+    handleLoadingStatus(loadingkey, true);
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const response = await res.json();
+        throw response; // 🛑 throw error
+      }
+
+      return res;
+    } catch (err) {
+      throw err; // ✅ pass to onError
+    } finally {
+      handleLoadingStatus(loadingkey, false); // always stop loading
+    }
+  };
+  const {
+    mutate: mutateRequestMobileOTP,
+    isSuccess: isSuccessMobileOTP,
+    isError: isErrorMobileOTP,
+    error: errorMobileOTP,
+  } = useMutation({
+    mutationFn,
+    onSuccess: (data) => {
+      if (data.status === 200) {
+        setShowMobileOtp(true);
+        showToast({
+          type: "success",
+          heading: "OTP sent successfully",
+          message: "Enter the code to verify your identity.",
+        });
+      }
+    },
+    onError: (err) => {
+      if (err.detail && err.detail.includes("Verified")) {
+        showToast({
+          type: "success",
+          heading: "Verified",
+          message: "Mobile Number already verified.",
+        });
+        setVerifiedStatus((prev) => ({
+          ...prev,
+          mobile_no: true,
+        }));
+        setShowMobileOtp(false);
+      }
+      console.error("Mobile OTP failed:", err);
+    },
+  });
+
+  const {
+    mutate: mutateRequestMailOTP,
+    isSuccess: isSuccessMailOTP,
+    isError: isErrorMailOTP,
+    error: errorMailOTP,
+  } = useMutation({
+    mutationFn,
+    onSuccess: (data) => {
+      if (data.status === 200) {
+        setShowEmailOtp(true);
+        showToast({
+          type: "success",
+          heading: "OTP sent successfully",
+          message: "Enter the code to verify your identity.",
+        });
+      }
+    },
+    onError: (err) => {
+      if (err.detail && err.detail.includes("Verified")) {
+        showToast({
+          type: "success",
+          heading: "Verified",
+          message: "Mail ID already verified.",
+        });
+        setVerifiedStatus((prev) => ({
+          ...prev,
+          mail_address: true,
+        }));
+        setShowMobileOtp(false);
+      }
+      console.error("Mail OTP failed:", err);
+    },
+  });
+
+  const {
+    mutate: mutateVerifyMobileOTP,
+    isSuccess: isSuccessVerifyMobileOTP,
+    isError: isErrorVerifyMobileOTP,
+    error: errorVerifyMobileOTP,
+  } = useMutation({
+    mutationFn,
+    onSuccess: (data) => {
+      if (data.status === 200) {
+        setVerifiedStatus((prev) => ({
+          ...prev,
+          mobile_no: true,
+        }));
+        setShowMobileOtp(false);
+      }
+    },
+    onError: (err) => {
+      console.error("Mobile OTP verify failed:", err);
+    },
+  });
+
+  const {
+    mutate: mutateVerifyMailOTP,
+    isLoading,
+    isSuccess: isSuccessVerifyMailOTP,
+    isError: isErrorVerifyMailOTP,
+    error: errorVerifyMailOTP,
+  } = useMutation({
+    mutationFn,
+
+    onSuccess: (data) => {
+      if (data.status === 200) {
+        setVerifiedStatus((prev) => ({
+          ...prev,
+          mail_address: true,
+        }));
+        setShowEmailOtp(false);
+      }
+    },
+    onError: (err) => {
+      console.error("Mail OTP verify failed:", err);
+    },
+  });
+
+  // console.log(isLoadingMailOTP);
 
   const handleChange = (e) => {
     setRegisterData((prev) => ({
@@ -262,18 +402,7 @@ const Register = ({ showRegister, setShowRegister }) => {
     if (key === "mobile_no") {
       const isValid = /^\d{10}$/.test(registerData.mobile_no);
       if (isValid) {
-        // setFieldStatus([(prev) => ({ ...prev, [key]: true })]);
-        // setShowMobileOtp(true);
-
-        mutateGenerateMobileOTP({
-          url: APPURL.sendPhoneCode,
-          data: {
-            username: registerData.username,
-            password: registerData.password,
-            phone_no: registerData.mobile_no,
-          },
-          isForm: false,
-        });
+        RequestMobileOTP();
       } else {
         showToast({
           type: "error",
@@ -282,14 +411,12 @@ const Register = ({ showRegister, setShowRegister }) => {
         });
       }
     }
-
     if (key === "mail_address") {
       const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
         registerData.mail_address
       );
       if (isValid) {
-        setShowEmailOtp(true);
-        setFieldStatus([(prev) => ({ ...prev, [key]: true })]);
+        RequestMailOTP();
       } else {
         showToast({
           type: "error",
@@ -300,12 +427,67 @@ const Register = ({ showRegister, setShowRegister }) => {
     }
   };
 
-  useEffect(() => {}, [
-    isSuccessGenerateMailOTP,
-    isSuccessGenerateMobileOTP,
-    isSuccessMailOTP,
-    isSuccessMobileOTP,
-  ]);
+  useEffect(() => {}, []);
+
+  const RequestMobileOTP = async () => {
+    const PostData = {
+      username: registerData.username,
+      password: registerData.password,
+      phone_no: registerData.mobile_no,
+    };
+
+    mutateRequestMobileOTP({
+      url: APPURL.sendPhoneCode,
+      data: PostData,
+      isForm: false,
+      loadingkey: LoadingKey.sendMobile,
+    });
+  };
+  const VerifyMobileOTP = async () => {
+    const PostData = {
+      username: registerData.username,
+      password: registerData.password,
+      code: Number(registerData.mobile_otp),
+    };
+
+    mutateVerifyMobileOTP({
+      url: APPURL.verifyPhoneCode,
+      data: PostData,
+      isForm: false,
+      loadingkey: LoadingKey.verifyMobile,
+    });
+  };
+
+  const RequestMailOTP = async () => {
+    const PostData = {
+      username: registerData.username,
+      password: registerData.password,
+      email: registerData.mail_address,
+    };
+
+    mutateRequestMailOTP({
+      url: APPURL.sendEmailCode,
+      data: PostData,
+      isForm: false,
+      attachToken: false,
+      loadingkey: LoadingKey.sendMail,
+    });
+  };
+  const VerifyMailOTP = async () => {
+    const PostData = {
+      username: registerData.username,
+      password: registerData.password,
+      code: registerData.mail_otp,
+    };
+
+    mutateVerifyMailOTP({
+      url: APPURL.verifyEmailCode,
+      data: PostData,
+      isForm: false,
+      attachToken: false,
+      loadingkey: LoadingKey.verifyMail,
+    });
+  };
 
   return (
     <Modal
@@ -339,21 +521,6 @@ const Register = ({ showRegister, setShowRegister }) => {
           />
         </div>
 
-        {/* Password */}
-        {/* <div className="mb-4">
-          <label className="block text-lg font-medium text-gray-500">
-            Password
-          </label>
-          <input
-            name="password"
-            type="password"
-            value={registerData.password}
-            onChange={handleChange}
-            className="w-full border rounded px-3 py-2 mt-1 border-gray-400"
-            placeholder="Enter password"
-          />
-        </div>
-         */}
         <div className="mb-4 relative">
           <label className="block text-lg font-medium text-gray-500 mb-1">
             Password
@@ -397,6 +564,7 @@ const Register = ({ showRegister, setShowRegister }) => {
 
             <CustomButton
               disabled={FieldStatus.mobile_no || VerifiedStatus.mobile_no}
+              loading={LoadingStatus.sendMobile}
               onClick={(e) => {
                 e.stopPropagation();
                 ValidateField("mobile_no");
@@ -417,15 +585,17 @@ const Register = ({ showRegister, setShowRegister }) => {
             <div className="mt-2">
               <OtpInput
                 value={registerData.mobile_otp}
+                isLoading={LoadingStatus.verifyMobile}
                 onChange={(otp) =>
                   setRegisterData((prev) => ({ ...prev, mobile_otp: otp }))
                 }
                 handleSubmit={() => {
-                  setVerifiedStatus((prev) => ({
-                    ...prev,
-                    mobile_no: true,
-                  }));
-                  setShowMobileOtp(false);
+                  // setVerifiedStatus((prev) => ({
+                  //   ...prev,
+                  //   mobile_no: true,
+                  // }));
+                  // setShowMobileOtp(false);
+                  VerifyMobileOTP();
                 }}
               />
             </div>
@@ -449,6 +619,7 @@ const Register = ({ showRegister, setShowRegister }) => {
 
             <CustomButton
               disabled={FieldStatus.mail_address || VerifiedStatus.mail_address}
+              loading={LoadingStatus.sendMail}
               onClick={(e) => {
                 e.stopPropagation();
                 ValidateField("mail_address");
@@ -472,15 +643,12 @@ const Register = ({ showRegister, setShowRegister }) => {
               <div className="font-medium text-gray-500">Enter Mail OTP:</div>
               <OtpInput
                 value={registerData.mail_otp}
+                isLoading={LoadingStatus.verifyMail}
                 onChange={(otp) =>
                   setRegisterData((prev) => ({ ...prev, mail_otp: otp }))
                 }
                 handleSubmit={() => {
-                  setVerifiedStatus((prev) => ({
-                    ...prev,
-                    mail_address: true,
-                  }));
-                  setShowEmailOtp(false);
+                  VerifyMailOTP();
                 }}
               />
             </div>
@@ -491,7 +659,7 @@ const Register = ({ showRegister, setShowRegister }) => {
   );
 };
 
-function OtpInput({ value, onChange, namePrefix, handleSubmit }) {
+function OtpInput({ value, onChange, namePrefix, handleSubmit, isLoading }) {
   const inputs = useRef([]);
 
   const handleChange = (e, index) => {
@@ -529,21 +697,24 @@ function OtpInput({ value, onChange, namePrefix, handleSubmit }) {
           className="w-10 h-10 text-center border rounded text-lg"
         />
       ))}
-      <button
-        className={`${
-          disabledStatus
-            ? "bg-green-500/50 cursor-not-allowed"
-            : "bg-green-600 cursor-pointer hover:bg-green-700"
-        }  text-white px-3 rounded-lg font-medium transition-all duration-300`}
+
+      <CustomButton
         disabled={disabledStatus}
-        onClick={() => {
+        loading={isLoading ? isLoading : false}
+        onClick={(e) => {
+          e.stopPropagation();
           if (handleSubmit) {
             handleSubmit();
           }
         }}
+        className={`${
+          disabledStatus
+            ? "bg-green-500/50 cursor-not-allowed"
+            : "bg-green-600 cursor-pointer hover:bg-green-700"
+        }  text-white px-3 rounded-lg font-medium transition-all duration-300 min-w-[5.5em]`}
       >
         Submit
-      </button>
+      </CustomButton>
     </div>
   );
 }
